@@ -18,6 +18,9 @@ const ChallengeDetails = () => {
   const [candidateWhatsapp, setCandidateWhatsapp] = useState('');
   const [comments, setComments] = useState('');
   const [userProfile, setUserProfile] = useState(null);
+  const [hasStarted, setHasStarted] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [submissionId, setSubmissionId] = useState(null);
 
   useEffect(() => {
     fetchTest();
@@ -60,12 +63,20 @@ const ChallengeDetails = () => {
       // Vérification de soumission existante sans .single() pour éviter le 406
       const { data: existingSub, error: subError } = await supabase
         .from('submissions')
-        .select('id')
+        .select('*')
         .eq('test_id', id)
         .eq('user_id', user.id);
       
       if (!subError && existingSub && existingSub.length > 0) {
+        const sub = existingSub[0];
         setSubmitted(true);
+        setHasStarted(true);
+        setSubmissionId(sub.id);
+        setVideoLink(sub.video_link || '');
+        setComments(sub.comments || '');
+        if (sub.candidate_name) setCandidateName(sub.candidate_name);
+        if (sub.candidate_email) setCandidateEmail(sub.candidate_email);
+        if (sub.candidate_whatsapp) setCandidateWhatsapp(sub.candidate_whatsapp);
       }
     } catch (err) {
       console.warn("Erreur non-critique lors de la vérification du profil/soumission:", err.message);
@@ -77,7 +88,7 @@ const ChallengeDetails = () => {
     setSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      await apiClient.post('/submissions', {
+      const payload = {
         test_id: id,
         user_id: user.id,
         candidate_name: candidateName,
@@ -85,9 +96,18 @@ const ChallengeDetails = () => {
         candidate_whatsapp: candidateWhatsapp,
         video_link: videoLink,
         comments: comments
-      });
+      };
+
+      if (submissionId) {
+        await apiClient.put(`/submissions/${submissionId}`, payload);
+        toast.success('Travail mis à jour avec succès !');
+      } else {
+        const res = await apiClient.post('/submissions', payload);
+        setSubmissionId(res.data.id);
+        toast.success('Travail soumis avec succès !');
+      }
       setSubmitted(true);
-      toast.success('Travail soumis avec succès !');
+      setIsEditing(false);
     } catch (error) {
       toast.error('Erreur lors de la soumission du travail : ' + error.message);
     } finally {
@@ -155,14 +175,34 @@ const ChallengeDetails = () => {
               <p className="text-white font-headline font-bold text-xl">{test.asset_size}</p>
             </div>
             <div className="col-span-full md:col-span-1">
-              <a href={test.drive_link} target="_blank" rel="noreferrer" className="w-full h-full flex items-center justify-center gap-2 bg-white text-black font-bold rounded-sm hover:bg-gray-200 transition-all py-3">
-                <Download className="w-4 h-4" />
-                Télécharger les Assets
-              </a>
+              {hasStarted ? (
+                <a href={test.drive_link} target="_blank" rel="noreferrer" className="w-full h-full flex items-center justify-center gap-2 bg-white text-black font-bold rounded-sm hover:bg-gray-200 transition-all py-3">
+                  <Download className="w-4 h-4" />
+                  Télécharger les Assets
+                </a>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center gap-2 bg-[#2C2C2E] text-outline font-bold rounded-sm py-3 cursor-not-allowed" title="Commencez le test pour débloquer">
+                  <Download className="w-4 h-4" />
+                  Télécharger les Assets
+                </div>
+              )}
             </div>
           </div>
 
-          {test.instructions && (
+          {!hasStarted && !submitted && userProfile?.role !== 'admin' && (
+            <div className="bg-[#1C1C1E] border border-primary/30 p-8 rounded-lg text-center mt-8">
+              <h3 className="text-white font-headline font-bold text-2xl mb-4">Prêt à relever le défi ?</h3>
+              <p className="text-outline mb-6">Les instructions détaillées, le script et les liens de téléchargement seront débloqués une fois que vous aurez commencé.</p>
+              <button 
+                onClick={() => setHasStarted(true)}
+                className="px-8 py-4 bg-primary text-[#1000a9] font-headline font-black text-xl rounded-sm hover:bg-[#8083ff] transition-all glow-button"
+              >
+                Commencer le test
+              </button>
+            </div>
+          )}
+
+          {hasStarted && test.instructions && (
             <div className="space-y-4">
               <h3 className="text-white font-headline font-bold text-2xl">Ressources & Conseils Supplémentaires</h3>
               <div className="prose prose-invert max-w-none text-outline">
@@ -177,11 +217,14 @@ const ChallengeDetails = () => {
         {/* Colonne Droite : Formulaire de Soumission */}
         <div className="lg:col-span-1">
           <div className="sticky top-32 bg-[#161618] border border-[#2C2C2E] p-8 rounded-lg shadow-xl">
-            {submitted ? (
+            {submitted && !isEditing ? (
               <div className="text-center py-10">
                 <CheckCircle className="text-green-500 w-16 h-16 mx-auto mb-6" />
                 <h3 className="text-white font-headline font-bold text-2xl mb-4">Travail Soumis !</h3>
                 <p className="text-outline text-sm mb-8">Votre défi a été envoyé au recruteur. Vous recevrez un retour bientôt.</p>
+                <button onClick={() => setIsEditing(true)} className="w-full py-3 bg-primary text-[#1000a9] font-bold rounded-sm hover:bg-[#8083ff] transition-all mb-3">
+                  Éditer ma soumission
+                </button>
                 <button onClick={() => navigate('/dashboard')} className="w-full py-3 border border-[#2C2C2E] text-white font-bold rounded-sm hover:bg-[#1C1C1E] transition-all">
                   Retour au tableau de bord
                 </button>
@@ -194,6 +237,12 @@ const ChallengeDetails = () => {
                 <button onClick={() => navigate('/admin')} className="w-full py-3 bg-[#1C1C1E] text-white text-xs font-bold rounded-sm hover:bg-[#2C2C2E] transition-all flex items-center justify-center gap-2">
                   Retour au Studio
                 </button>
+              </div>
+            ) : !hasStarted ? (
+              <div className="text-center py-10 border-2 border-dashed border-[#2C2C2E] rounded-lg p-6">
+                <Clock className="text-outline w-12 h-12 mx-auto mb-4 opacity-50" />
+                <h3 className="text-white font-headline font-bold text-xl mb-2">En attente</h3>
+                <p className="text-outline text-xs">Commencez le test pour débloquer le formulaire de soumission.</p>
               </div>
             ) : (
               <>
@@ -266,8 +315,17 @@ const ChallengeDetails = () => {
                     className="w-full py-4 bg-primary text-[#1000a9] font-headline font-black text-lg rounded-sm hover:bg-[#8083ff] transition-all glow-button flex items-center justify-center gap-3 disabled:opacity-50"
                   >
                     {submitting ? <Loader2 className="animate-spin w-5 h-5" /> : <Send className="w-5 h-5" />}
-                    Envoyer le Projet
+                    {submissionId ? 'Mettre à jour le Projet' : 'Envoyer le Projet'}
                   </button>
+                  {isEditing && (
+                    <button 
+                      type="button"
+                      onClick={() => setIsEditing(false)}
+                      className="w-full py-3 mt-3 border border-[#2C2C2E] text-white text-sm font-bold rounded-sm hover:bg-[#1C1C1E] transition-all"
+                    >
+                      Annuler
+                    </button>
+                  )}
                 </form>
               </>
             )}
@@ -276,51 +334,53 @@ const ChallengeDetails = () => {
       </div>
 
       {/* SECTION SCRIPT EN PLEINE LARGEUR */}
-      <div className="space-y-8 mt-16">
-        <div className="flex items-center gap-4">
-          <h3 className="text-white font-headline font-bold text-3xl">Script Détaillé & Instructions</h3>
-          <div className="h-px flex-1 bg-gradient-to-r from-[#2C2C2E] to-transparent"></div>
-        </div>
-        
-        <div className="bg-[#161618] border border-[#2C2C2E] rounded-xl overflow-hidden shadow-2xl">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-[12px] table-auto border-collapse min-w-[800px]">
-            <thead>
-              <tr className="bg-[#0A0A0B] border-b border-[#2C2C2E] text-outline font-bold uppercase tracking-widest">
-                <th className="p-5 w-12 text-center">#</th>
-                <th className="p-5 w-32">Type</th>
-                <th className="p-5 w-1/3">Script / Narration</th>
-                <th className="p-5">Visuel</th>
-                <th className="p-5">Montage</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#2C2C2E]">
-              {test.scenes?.sort((a,b) => a.order_index - b.order_index).map((scene, index) => (
-                <tr key={index} className="hover:bg-[#1C1C1E]/30 transition-colors">
-                  <td className="p-5 text-center font-mono text-primary/50 font-bold">
-                    {(index + 1).toString().padStart(2, '0')}
-                  </td>
-                  <td className="p-5">
-                    <span className="px-2 py-1 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest rounded border border-primary/10">
-                      {scene.type}
-                    </span>
-                  </td>
-                  <td className="p-5 text-on-surface whitespace-pre-wrap leading-relaxed font-medium">
-                    {scene.script}
-                  </td>
-                  <td className="p-5 text-outline italic whitespace-pre-wrap text-[11px]">
-                    {scene.visual_specs}
-                  </td>
-                  <td className="p-5 text-primary/80 whitespace-pre-wrap font-medium">
-                    {scene.editing_instruction}
-                  </td>
+      {hasStarted && (
+        <div className="space-y-8 mt-16">
+          <div className="flex items-center gap-4">
+            <h3 className="text-white font-headline font-bold text-3xl">Script Détaillé & Instructions</h3>
+            <div className="h-px flex-1 bg-gradient-to-r from-[#2C2C2E] to-transparent"></div>
+          </div>
+          
+          <div className="bg-[#161618] border border-[#2C2C2E] rounded-xl overflow-hidden shadow-2xl">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[12px] table-auto border-collapse min-w-[800px]">
+              <thead>
+                <tr className="bg-[#0A0A0B] border-b border-[#2C2C2E] text-outline font-bold uppercase tracking-widest">
+                  <th className="p-5 w-12 text-center">#</th>
+                  <th className="p-5 w-32">Type</th>
+                  <th className="p-5 w-1/3">Script / Narration</th>
+                  <th className="p-5">Visuel</th>
+                  <th className="p-5">Montage</th>
                 </tr>
-              ))}
-            </tbody>
-            </table>
+              </thead>
+              <tbody className="divide-y divide-[#2C2C2E]">
+                {test.scenes?.sort((a,b) => a.order_index - b.order_index).map((scene, index) => (
+                  <tr key={index} className="hover:bg-[#1C1C1E]/30 transition-colors">
+                    <td className="p-5 text-center font-mono text-primary/50 font-bold">
+                      {(index + 1).toString().padStart(2, '0')}
+                    </td>
+                    <td className="p-5">
+                      <span className="px-2 py-1 bg-primary/5 text-primary text-[10px] font-bold uppercase tracking-widest rounded border border-primary/10">
+                        {scene.type}
+                      </span>
+                    </td>
+                    <td className="p-5 text-on-surface whitespace-pre-wrap leading-relaxed font-medium">
+                      {scene.script}
+                    </td>
+                    <td className="p-5 text-outline italic whitespace-pre-wrap text-[11px]">
+                      {scene.visual_specs}
+                    </td>
+                    <td className="p-5 text-primary/80 whitespace-pre-wrap font-medium">
+                      {scene.editing_instruction}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              </table>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </main>
   );
 };

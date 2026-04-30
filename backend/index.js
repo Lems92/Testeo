@@ -281,7 +281,7 @@ app.post('/api/submissions', authenticate, async (req, res) => {
     }
 });
 
-app.put('/api/submissions/:id', authenticate, authorizeAdmin, async (req, res) => {
+app.put('/api/submissions/:id', authenticate, async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('submissions')

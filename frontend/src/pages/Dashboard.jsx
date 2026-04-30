@@ -20,13 +20,19 @@ const Dashboard = () => {
   const fetchData = async () => {
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (!authUser) {
+        setLoading(false);
+        return;
+      }
+      
       setUser(authUser);
 
       // Fetch profile for role
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
-        .eq('id', user.id)
+        .eq('id', authUser.id)
         .single();
       
       const userRole = profile?.role || 'candidate';
@@ -176,10 +182,10 @@ const Dashboard = () => {
                       </div>
                     </div>
                     
-                    <Link to={isSubmitted ? '#' : `/challenge/${test.id}`} 
-                      className={`w-full py-3 border border-[#2C2C2E] text-white text-center font-bold font-headline rounded-sm ${isSubmitted ? 'cursor-default bg-[#2C2C2E]/50 text-outline' : 'hover:bg-primary hover:text-[#1000a9] hover:border-primary'} transition-all active:scale-95`}
+                    <Link to={`/challenge/${test.id}`} 
+                      className={`w-full py-3 border border-[#2C2C2E] text-white text-center font-bold font-headline rounded-sm ${isSubmitted ? 'bg-[#2C2C2E]/80 hover:bg-[#2C2C2E]' : 'hover:bg-primary hover:text-[#1000a9] hover:border-primary'} transition-all active:scale-95`}
                     >
-                      {isSubmitted ? 'Défi Terminé' : 'Commencer le Défi'}
+                      {isSubmitted ? 'Voir / Éditer' : 'Commencer le Défi'}
                     </Link>
                   </div>
                 );

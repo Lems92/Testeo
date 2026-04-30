@@ -156,7 +156,7 @@ const AdminDashboard = () => {
                     <Link to={`/challenge/${test.id}`} target="_blank" className="text-outline hover:text-white p-2 inline-block">
                       <Eye className="w-5 h-5" />
                     </Link>
-                    <Link to={`/admin/edit/${test.id}`} className="text-outline hover:text-white p-2 inline-block">
+                    <Link to={`/admin/edit/${test.id}`} className="text-outline hover:text-white p-2 inline-block" title="Éditer le test">
                       <Edit className="w-5 h-5" />
                     </Link>
                     
