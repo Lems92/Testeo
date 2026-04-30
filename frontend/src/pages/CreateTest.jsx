@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { Save, ArrowLeft, Loader2, Info, Plus, Trash2 } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '../api/client';
+import { toast } from 'react-hot-toast';
 
 const CreateTest = () => {
   const { id } = useParams();
@@ -50,7 +51,7 @@ const CreateTest = () => {
   const fetchTest = async () => {
     setFetching(true);
     try {
-      const response = await axios.get(`http://localhost:5000/api/tests/${id}`);
+      const response = await apiClient.get(`/tests/${id}`);
       const { scenes, ...data } = response.data;
       setFormData(data);
       setScenes(scenes.sort((a,b) => a.order_index - b.order_index));
@@ -83,13 +84,13 @@ const CreateTest = () => {
       const payload = { ...formData, scenes, recruiter_id: user.id };
 
       if (id) {
-        await axios.put(`http://localhost:5000/api/tests/${id}`, payload);
+        await apiClient.put(`/tests/${id}`, payload);
       } else {
-        await axios.post('http://localhost:5000/api/tests', payload);
+        await apiClient.post('/tests', payload);
       }
       navigate('/admin');
     } catch (error) {
-      alert('Erreur lors de l\'enregistrement du test : ' + error.message);
+      toast.error('Erreur lors de l\'enregistrement du test : ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -220,8 +221,9 @@ const CreateTest = () => {
             </button>
           </div>
 
-          <div className="bg-[#0A0A0B] border border-[#2C2C2E] rounded-sm overflow-hidden overflow-x-auto">
-            <table className="w-full text-left text-xs min-w-[800px]">
+          <div className="bg-[#0A0A0B] border border-[#2C2C2E] rounded-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs min-w-[800px]">
               <thead>
                 <tr className="bg-[#161618] border-b border-[#2C2C2E] text-outline font-bold uppercase tracking-widest">
                   <th className="p-4 w-12 text-center">#</th>
@@ -291,7 +293,8 @@ const CreateTest = () => {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         </div>
 

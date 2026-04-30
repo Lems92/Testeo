@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { Clock, Database, CheckCircle, MoreVertical, Loader2, Search, PlayCircle, User as UserIcon, MessageSquare, ExternalLink } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '../api/client';
+import { toast } from 'react-hot-toast';
 
 const Dashboard = () => {
   const [tests, setTests] = useState([]);
@@ -18,8 +19,8 @@ const Dashboard = () => {
 
   const fetchData = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      setUser(authUser);
 
       // Fetch profile for role
       const { data: profile } = await supabase
@@ -32,19 +33,19 @@ const Dashboard = () => {
       setRole(userRole);
 
       if (userRole === 'admin') {
-        const adminSubsRes = await axios.get('http://localhost:5000/api/submissions');
+        const adminSubsRes = await apiClient.get('/submissions');
         setAdminSubmissions(adminSubsRes.data);
       } else {
         const [testsRes, subsRes] = await Promise.all([
-          axios.get('http://localhost:5000/api/tests'),
-          supabase.from('submissions').select('test_id').eq('user_id', user.id)
+          apiClient.get('/tests'),
+          supabase.from('submissions').select('test_id').eq('user_id', authUser.id)
         ]);
         setTests(testsRes.data);
         setSubmissions(subsRes.data.map(s => s.test_id));
       }
     } catch (error) {
       console.error('Erreur lors de la récupération des données du tableau de bord:', error);
-      alert('Erreur lors de la récupération des données: ' + (error.response?.data?.error || error.message));
+      toast.error('Erreur lors de la récupération des données: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }

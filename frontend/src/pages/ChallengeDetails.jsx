@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { Clock, Database, Download, Send, ArrowLeft, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '../api/client';
+import { toast } from 'react-hot-toast';
 
 const ChallengeDetails = () => {
   const { id } = useParams();
@@ -25,7 +26,7 @@ const ChallengeDetails = () => {
 
   const fetchTest = async () => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/tests/${id}`);
+      const response = await apiClient.get(`/tests/${id}`);
       setTest(response.data);
     } catch (error) {
       console.error('Erreur lors de la récupération du défi :', error);
@@ -76,7 +77,7 @@ const ChallengeDetails = () => {
     setSubmitting(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      await axios.post('http://localhost:5000/api/submissions', {
+      await apiClient.post('/submissions', {
         test_id: id,
         user_id: user.id,
         candidate_name: candidateName,
@@ -86,8 +87,9 @@ const ChallengeDetails = () => {
         comments: comments
       });
       setSubmitted(true);
+      toast.success('Travail soumis avec succès !');
     } catch (error) {
-      alert('Erreur lors de la soumission du travail : ' + error.message);
+      toast.error('Erreur lors de la soumission du travail : ' + error.message);
     } finally {
       setSubmitting(false);
     }
@@ -281,7 +283,8 @@ const ChallengeDetails = () => {
         </div>
         
         <div className="bg-[#161618] border border-[#2C2C2E] rounded-xl overflow-hidden shadow-2xl">
-          <table className="w-full text-left text-[12px] table-auto border-collapse">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-[12px] table-auto border-collapse min-w-[800px]">
             <thead>
               <tr className="bg-[#0A0A0B] border-b border-[#2C2C2E] text-outline font-bold uppercase tracking-widest">
                 <th className="p-5 w-12 text-center">#</th>
@@ -314,7 +317,8 @@ const ChallengeDetails = () => {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       </div>
     </main>
