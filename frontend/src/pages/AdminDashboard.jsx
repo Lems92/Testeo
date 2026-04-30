@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { Plus, Eye, Edit, Trash2, Loader2, PlayCircle, X, Save, MessageSquare } from 'lucide-react';
-import axios from 'axios';
+import apiClient from '../api/client';
+import { toast } from 'react-hot-toast';
 
 const AdminDashboard = () => {
   const [tests, setTests] = useState([]);
@@ -27,7 +28,7 @@ const AdminDashboard = () => {
       const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
       if (profile?.role !== 'admin') return navigate('/dashboard');
 
-      const response = await axios.get(`http://localhost:5000/api/tests?recruiter_id=${user.id}`);
+      const response = await apiClient.get(`/tests?recruiter_id=${user.id}`);
       const allTests = response.data;
       
       setTests(allTests);
@@ -43,14 +44,14 @@ const AdminDashboard = () => {
 
   const deleteTest = async (id) => {
     try {
-      await axios.delete(`http://localhost:5000/api/tests/${id}`);
+      await apiClient.delete(`/tests/${id}`);
       setTests(prevTests => prevTests.filter(t => t.id !== id));
       setConfirmingDelete(null);
-      alert('Test supprimé avec succès');
+      toast.success('Test supprimé avec succès');
     } catch (error) {
       console.error('Erreur lors de la suppression du test:', error);
       const errorMsg = error.response?.data?.error || error.message;
-      alert('Erreur lors de la suppression du test: ' + errorMsg);
+      toast.error('Erreur lors de la suppression du test: ' + errorMsg);
     }
   };
 
@@ -58,11 +59,11 @@ const AdminDashboard = () => {
     setSelectedTest(test);
     setModalLoading(true);
     try {
-      const response = await axios.get(`http://localhost:5000/api/submissions/${test.id}`);
+      const response = await apiClient.get(`/submissions/${test.id}`);
       setSubmissions(response.data);
     } catch (error) {
       console.error('Erreur lors de la récupération des soumissions:', error);
-      alert('Erreur lors de la récupération des soumissions: ' + (error.response?.data?.error || error.message));
+      toast.error('Erreur lors de la récupération des soumissions: ' + (error.response?.data?.error || error.message));
     } finally {
       setModalLoading(false);
     }
@@ -70,10 +71,10 @@ const AdminDashboard = () => {
 
   const saveFeedback = async (subId, feedback, score) => {
     try {
-      await axios.put(`http://localhost:5000/api/submissions/${subId}`, { feedback, score });
-      alert('Évaluation enregistrée avec succès !');
+      await apiClient.put(`/submissions/${subId}`, { feedback, score });
+      toast.success('Évaluation enregistrée avec succès !');
     } catch (error) {
-      alert('Erreur lors de l\'enregistrement de l\'évaluation: ' + error.message);
+      toast.error('Erreur lors de l\'enregistrement de l\'évaluation: ' + error.message);
     }
   };
 
@@ -114,8 +115,9 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      <div className="bg-[#161618] border border-[#2C2C2E] rounded-lg overflow-hidden overflow-x-auto">
-        <table className="w-full text-left text-sm min-w-[600px]">
+      <div className="bg-[#161618] border border-[#2C2C2E] rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm min-w-[600px]">
           <thead className="bg-[#0A0A0B] border-b border-[#2C2C2E]">
             <tr>
               <th className="p-6 font-bold text-outline uppercase tracking-widest text-[10px]">Titre du Test</th>
@@ -192,7 +194,8 @@ const AdminDashboard = () => {
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
 
       {/* Submissions Modal */}

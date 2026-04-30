@@ -18,6 +18,38 @@ app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
 
+// Auth Middlewares
+const authenticate = async (req, res, next) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token provided' });
+
+    try {
+        const { data: { user }, error } = await supabase.auth.getUser(token);
+        if (error || !user) throw new Error('Invalid token');
+        req.user = user;
+        next();
+    } catch (error) {
+        res.status(401).json({ error: 'Unauthorized' });
+    }
+};
+
+const authorizeAdmin = async (req, res, next) => {
+    try {
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', req.user.id)
+            .single();
+
+        if (error || profile?.role !== 'admin') {
+            return res.status(403).json({ error: 'Forbidden: Admin access required' });
+        }
+        next();
+    } catch (error) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 // Routes
 // Health check
 app.get('/api/health', (req, res) => {
@@ -25,7 +57,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Tests Routes
-app.get('/api/tests', async (req, res) => {
+app.get('/api/tests', authenticate, async (req, res) => {
     const { recruiter_id } = req.query;
     try {
         let query = supabase
@@ -53,7 +85,7 @@ app.get('/api/tests', async (req, res) => {
     }
 });
 
-app.get('/api/tests/:id', async (req, res) => {
+app.get('/api/tests/:id', authenticate, async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('tests')
@@ -69,7 +101,7 @@ app.get('/api/tests/:id', async (req, res) => {
     }
 });
 
-app.post('/api/tests', async (req, res) => {
+app.post('/api/tests', authenticate, authorizeAdmin, async (req, res) => {
     const { scenes, ...testData } = req.body;
     try {
         const { data, error } = await supabase
@@ -99,7 +131,7 @@ app.post('/api/tests', async (req, res) => {
     }
 });
 
-app.put('/api/tests/:id', async (req, res) => {
+app.put('/api/tests/:id', authenticate, authorizeAdmin, async (req, res) => {
     const { scenes, ...testData } = req.body;
     const testId = req.params.id;
     try {
@@ -133,7 +165,7 @@ app.put('/api/tests/:id', async (req, res) => {
     }
 });
 
-app.delete('/api/tests/:id', async (req, res) => {
+app.delete('/api/tests/:id', authenticate, authorizeAdmin, async (req, res) => {
     const testId = req.params.id;
     try {
         console.log(`Attempting to delete test ${testId} and related data...`);
@@ -169,7 +201,7 @@ app.delete('/api/tests/:id', async (req, res) => {
 });
 
 // Submissions Routes
-app.get('/api/submissions', async (req, res) => {
+app.get('/api/submissions', authenticate, authorizeAdmin, async (req, res) => {
     try {
         console.log('GET /api/submissions - Request received');
         // Try the most standard join first. If this fails, the error will be logged.
@@ -202,7 +234,7 @@ app.get('/api/submissions', async (req, res) => {
     }
 });
 
-app.get('/api/submissions/:testId', async (req, res) => {
+app.get('/api/submissions/:testId', authenticate, authorizeAdmin, async (req, res) => {
     try {
         console.log(`GET /api/submissions/${req.params.testId} - Request received`);
         const { data, error } = await supabase
@@ -235,7 +267,7 @@ app.get('/api/submissions/:testId', async (req, res) => {
     }
 });
 
-app.post('/api/submissions', async (req, res) => {
+app.post('/api/submissions', authenticate, async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('submissions')
@@ -249,7 +281,7 @@ app.post('/api/submissions', async (req, res) => {
     }
 });
 
-app.put('/api/submissions/:id', async (req, res) => {
+app.put('/api/submissions/:id', authenticate, authorizeAdmin, async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('submissions')

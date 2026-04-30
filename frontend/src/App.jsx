@@ -10,6 +10,7 @@ import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useState, useEffect } from 'react';
 import { supabase } from './supabase';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -37,6 +38,7 @@ function App() {
   return (
     <Router>
       <div className="min-h-screen bg-background text-on-surface font-body selection:bg-primary selection:text-[#1000a9]">
+        <Toaster position="top-right" />
         <Navbar session={session} />
         <Routes>
           <Route path="/" element={<Home />} />

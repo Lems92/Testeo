@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabase';
 import { Mail, Lock, Loader2 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -23,7 +24,7 @@ const Login = () => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
-        if (isAdmin && adminCode !== 'EdiTPersO') {
+        if (isAdmin && adminCode !== import.meta.env.VITE_ADMIN_CODE) {
           throw new Error("Code administrateur invalide");
         }
         
@@ -38,7 +39,7 @@ const Login = () => {
           }
         });
         if (error) throw error;
-        alert('Vérifiez vos e-mails pour la confirmation !');
+        toast.success('Vérifiez vos e-mails pour la confirmation !');
       }
       navigate('/dashboard');
     } catch (err) {
